@@ -15,6 +15,8 @@
 _Atomic enum log_level log_mesg_master = INFO;
 thread_local enum log_level log_mesg_thread = UNKNOW;
 
+FILE *output = NULL;
+
 FILE *file_debug = NULL;
 FILE *file_info = NULL;
 FILE *file_warn = NULL;
@@ -34,6 +36,9 @@ static void log_exit(void) {
 
     if (file_fatal != NULL)
         fclose(file_fatal);
+
+    if (output != NULL && output != stdout)
+        fclose(output);
 }
 
 static void create_log_directory(char *dir_path) {
@@ -97,6 +102,7 @@ static void create_log_directory(char *dir_path) {
 }
 
 void log_init(enum log_level master_level, char *dir_path) {
+    output = stdout;
     log_master_level(master_level);
     LOG_MESG(INFO, "Initializing lib log ...");
 
@@ -107,6 +113,29 @@ void log_init(enum log_level master_level, char *dir_path) {
     }
 
     LOG_MESG(INFO, "Initialization done");
+}
+
+void log_change_output(char *file_path) {
+    if (file_path == NULL) {
+        if (output != NULL && output != stdout)
+            fclose(output);
+
+        output = stdout;
+        return;
+    }
+
+    FILE *old = output;
+
+    output = fopen(file_path, "w");
+    if (file_debug == NULL) {
+        LOG_MESG(WARN, "Error when creating %s: %s", file_path, strerror(errno));
+        LOG_MESG(WARN, "No change has been made");
+        output = old;
+        return;
+    }
+
+    if (old != NULL && old != stdout)
+        fclose(old);
 }
 
 static void check_thread_level_defined(void) {
@@ -131,25 +160,25 @@ static void print_log(enum log_level level, char *msg_base, char *msg_sent) {
             if (file_debug != NULL)
                 fwrite(msg, 1, strlen(msg), file_debug);
             if (log_mesg_thread >= DEBUG)
-                printf(msg);
+                fprintf(output, msg);
             break;
         case INFO:
             if (file_info != NULL)
                 fwrite(msg, 1, strlen(msg), file_info);
             if (log_mesg_thread >= INFO)
-                printf(msg);
+                fprintf(output, msg);
             break;
         case WARN:
             if (file_warn != NULL)
                 fwrite(msg, 1, strlen(msg), file_warn);
             if (log_mesg_thread >= WARN)
-                printf(msg);
+                fprintf(output, msg);
             break;
         case FATAL:
             if (file_fatal != NULL)
                 fwrite(msg, 1, strlen(msg), file_fatal);
             if (log_mesg_thread >= FATAL)
-                printf(msg);
+                fprintf(output, msg);
             break;
         default:
             abort();

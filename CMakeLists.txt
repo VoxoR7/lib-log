@@ -6,10 +6,10 @@ cmake_policy(VERSION 3.16)
 ##### lib log configuration #####
 
 project(log     LANGUAGES C
-                VERSION 0.1.0
+                VERSION 0.1.1
                 DESCRIPTION "A project of liblog")
 
-add_compile_options(-Wall -Wextra -std=c2x -g)
+add_compile_options(-Wall -Wextra -std=c2x -O3)
 
 add_library(log)
 target_include_directories(log PUBLIC inc)
