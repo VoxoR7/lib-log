@@ -4,9 +4,9 @@
 #include <string.h>
 
 #ifdef __linux__
-    #define __FILENAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
+    #define FILENAME (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 #elifdef _WIN32
-    #define __FILENAME__ (strrchr(__FILE__, '\\') ? strrchr(__FILE__, '\\') + 1 : __FILE__)
+    #define FILENAME (strrchr(__FILE__, '\\') ? strrchr(__FILE__, '\\') + 1 : __FILE__)
 #else
     #error "This lib is not designed to be compiled on this system !"
 #endif
@@ -30,7 +30,7 @@ void log_print(enum log_level level, char *file, int line, char *msg, ...);
  * You should call log_init before any call to this macro or function.
  * This macro is vulnerable to all the known attack on the printf family such as format srting bug.
  */
-#define LOG_MESG(level, msg, ...) log_print(level, __FILENAME__, __LINE__, msg __VA_OPT__(,) __VA_ARGS__)
+#define LOG_MESG(level, msg, ...) log_print(level, FILENAME, __LINE__, msg __VA_OPT__(,) __VA_ARGS__)
 
 /**
  * @brief Initialize the lib log.
