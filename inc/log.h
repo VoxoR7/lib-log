@@ -15,7 +15,7 @@
  * The different log level usable.
  * Do not use UNKNOW, as it will fail with any function
  */
-enum log_level {UNKNOW, NONE, FATAL, WARN, INFO, DEBUG};
+enum log_level {LOG_UNKNOW, LOG_NONE, LOG_FATAL, LOG_WARN, LOG_INFO, LOG_DEBUG};
 
 /* DO NOT USE THIS FUNCTION, use the macro LOG_MESG instead */
 void log_print(enum log_level level, char *file, int line, char *msg, ...);

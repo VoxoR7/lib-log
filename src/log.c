@@ -12,8 +12,8 @@
 
 #include "color.h"
 
-_Atomic enum log_level log_mesg_master = INFO;
-thread_local enum log_level log_mesg_thread = UNKNOW;
+_Atomic enum log_level log_mesg_master = LOG_INFO;
+thread_local enum log_level log_mesg_thread = LOG_UNKNOW;
 
 FILE *output = NULL;
 
@@ -23,7 +23,7 @@ FILE *file_warn = NULL;
 FILE *file_fatal = NULL;
 
 static void log_exit(void) {
-    LOG_MESG(INFO, "Exiting lib log");
+    LOG_MESG(LOG_INFO, "Exiting lib log");
 
     if (file_debug != NULL)
         fclose(file_debug);
@@ -44,28 +44,34 @@ static void log_exit(void) {
 static void create_log_directory(char *dir_path) {
     errno = 0;
 
-    if (mkdir(dir_path, S_IRWXU | S_IRGRP | S_IROTH) == -1) {
+    #ifdef __linux__
+        if (mkdir(dir_path, S_IRWXU | S_IRGRP | S_IROTH) == -1) {
+    #elifdef _WIN32
+        if (mkdir(dir_path) == -1) {
+    #else
+        #error "This lib is not designed to be compiled on this system !"
+    #endif
         switch (errno) {
             case EACCES:
-                LOG_MESG(WARN, "Search permission is denied on a component of the path prefix, or write permission is denied on the parent directory of the directory to be created");
+                LOG_MESG(LOG_WARN, "Search permission is denied on a component of the path prefix, or write permission is denied on the parent directory of the directory to be created");
                 return;
             case EEXIST:
-                LOG_MESG(INFO, "The named path exists: %s", dir_path);
+                LOG_MESG(LOG_INFO, "The named path exists: %s", dir_path);
                 break;
             case ELOOP:
-                LOG_MESG(WARN, "A loop exists in symbolic links encountered during resolution of the path argument");
+                LOG_MESG(LOG_WARN, "A loop exists in symbolic links encountered during resolution of the path argument");
                 return;
             case ENOENT:
-                LOG_MESG(WARN, "A component of the path prefix specified by path does not name an existing directory or path is an empty string");
+                LOG_MESG(LOG_WARN, "A component of the path prefix specified by path does not name an existing directory or path is an empty string");
                 return;
             case ENOSPC:
-                LOG_MESG(WARN, "The file system does not contain enough space to hold the contents of the new directory or to extend the parent directory of the new directory");
+                LOG_MESG(LOG_WARN, "The file system does not contain enough space to hold the contents of the new directory or to extend the parent directory of the new directory");
                 return;
             case ENOTDIR:
-                LOG_MESG(WARN, "A component of the path prefix is not a directory");
+                LOG_MESG(LOG_WARN, "A component of the path prefix is not a directory");
                 return;
             default:
-                LOG_MESG(WARN, "Unknow error ocurred when creating directory");
+                LOG_MESG(LOG_WARN, "Unknow error ocurred when creating directory");
                 return;
         }
     }
@@ -75,28 +81,28 @@ static void create_log_directory(char *dir_path) {
     asprintf(&file_name, "%s/log.debug", dir_path);
     file_debug = fopen(file_name, "w");
     if (file_debug == NULL) {
-        LOG_MESG(WARN, "Error when creating %s: %s", file_name, strerror(errno));
+        LOG_MESG(LOG_WARN, "Error when creating %s: %s", file_name, strerror(errno));
     }
     free(file_name);
 
     asprintf(&file_name, "%s/log.info", dir_path);
     file_info = fopen(file_name, "w");
     if (file_info == NULL) {
-        LOG_MESG(WARN, "Error when creating %s: %s", file_name, strerror(errno));
+        LOG_MESG(LOG_WARN, "Error when creating %s: %s", file_name, strerror(errno));
     }
     free(file_name);
 
     asprintf(&file_name, "%s/log.warn", dir_path);
     file_warn = fopen(file_name, "w");
     if (file_warn == NULL) {
-        LOG_MESG(WARN, "Error when creating %s: %s", file_name, strerror(errno));
+        LOG_MESG(LOG_WARN, "Error when creating %s: %s", file_name, strerror(errno));
     }
     free(file_name);
 
     asprintf(&file_name, "%s/log.fatal", dir_path);
     file_fatal = fopen(file_name, "w");
     if (file_fatal == NULL) {
-        LOG_MESG(WARN, "Error when creating %s: %s", file_name, strerror(errno));
+        LOG_MESG(LOG_WARN, "Error when creating %s: %s", file_name, strerror(errno));
     }
     free(file_name);
 }
@@ -104,7 +110,7 @@ static void create_log_directory(char *dir_path) {
 void log_init(enum log_level master_level, char *dir_path) {
     output = stdout;
     log_master_level(master_level);
-    LOG_MESG(INFO, "Initializing lib log ...");
+    LOG_MESG(LOG_INFO, "Initializing lib log ...");
 
     atexit(log_exit);
 
@@ -112,7 +118,7 @@ void log_init(enum log_level master_level, char *dir_path) {
         create_log_directory(dir_path);
     }
 
-    LOG_MESG(INFO, "Initialization done");
+    LOG_MESG(LOG_INFO, "Initialization done");
 }
 
 void log_change_output(char *file_path) {
@@ -128,8 +134,8 @@ void log_change_output(char *file_path) {
 
     output = fopen(file_path, "w");
     if (file_debug == NULL) {
-        LOG_MESG(WARN, "Error when creating %s: %s", file_path, strerror(errno));
-        LOG_MESG(WARN, "No change has been made");
+        LOG_MESG(LOG_WARN, "Error when creating %s: %s", file_path, strerror(errno));
+        LOG_MESG(LOG_WARN, "No change has been made");
         output = old;
         return;
     }
@@ -139,14 +145,14 @@ void log_change_output(char *file_path) {
 }
 
 static void check_thread_level_defined(void) {
-    if (log_mesg_thread == UNKNOW)
+    if (log_mesg_thread == LOG_UNKNOW)
         log_mesg_thread = log_mesg_master;
 }
 
 static size_t get_time(char *buf) {
     time_t t = time(NULL);
     struct tm tm;
-    localtime_r(&t, &tm);
+    localtime_s(&t, &tm);
     char s[64];
     return strftime(buf, sizeof(s), "%Y %b %d %H:%M:%S", &tm);
 }
@@ -156,28 +162,28 @@ static void print_log(enum log_level level, char *msg_base, char *msg_sent) {
     asprintf(&msg, "%s%s\n", msg_base, msg_sent);
 
     switch (level) {
-        case DEBUG:
+        case LOG_DEBUG:
             if (file_debug != NULL)
                 fwrite(msg, 1, strlen(msg), file_debug);
-            if (log_mesg_thread >= DEBUG)
+            if (log_mesg_thread >= LOG_DEBUG)
                 fprintf(output, msg);
             break;
-        case INFO:
+        case LOG_INFO:
             if (file_info != NULL)
                 fwrite(msg, 1, strlen(msg), file_info);
-            if (log_mesg_thread >= INFO)
+            if (log_mesg_thread >= LOG_INFO)
                 fprintf(output, msg);
             break;
-        case WARN:
+        case LOG_WARN:
             if (file_warn != NULL)
                 fwrite(msg, 1, strlen(msg), file_warn);
-            if (log_mesg_thread >= WARN)
+            if (log_mesg_thread >= LOG_WARN)
                 fprintf(output, msg);
             break;
-        case FATAL:
+        case LOG_FATAL:
             if (file_fatal != NULL)
                 fwrite(msg, 1, strlen(msg), file_fatal);
-            if (log_mesg_thread >= FATAL)
+            if (log_mesg_thread >= LOG_FATAL)
                 fprintf(output, msg);
             break;
         default:
@@ -199,7 +205,7 @@ static void log_debug(char *file, int line, char *msg, va_list args) {
     asprintf(&msg_base, "[DEBUG] %s %s/%d: ", buf, file, line);
     vasprintf(&msg_sent, msg, args);
 
-    print_log(DEBUG, msg_base, msg_sent);
+    print_log(LOG_DEBUG, msg_base, msg_sent);
 
     free(msg_base);
     free(msg_sent);
@@ -218,7 +224,7 @@ static void log_info(char *file, int line, char *msg, va_list args) {
     asprintf(&msg_base, "[INFO ] %s %s/%d: ", buf, file, line);
     vasprintf(&msg_sent, msg, args);
 
-    print_log(INFO, msg_base, msg_sent);
+    print_log(LOG_INFO, msg_base, msg_sent);
 
     free(msg_base);
     free(msg_sent);
@@ -238,7 +244,7 @@ static void log_warn(char *file, int line, char *msg, va_list args) {
     asprintf(&msg_base, "[WARN ] %s %s/%d: ", buf, file, line);
     vasprintf(&msg_sent, msg, args);
 
-    print_log(WARN, msg_base, msg_sent);
+    print_log(LOG_WARN, msg_base, msg_sent);
 
     free(msg_base);
     free(msg_sent);
@@ -258,7 +264,7 @@ static void log_fatal(char *file, int line, char *msg, va_list args) {
     asprintf(&msg_base, "[FATAL] %s %s/%d: ", buf, file, line);
     vasprintf(&msg_sent, msg, args);
 
-    print_log(FATAL, msg_base, msg_sent);
+    print_log(LOG_FATAL, msg_base, msg_sent);
 
     free(msg_base);
     free(msg_sent);
@@ -273,23 +279,29 @@ void log_print(enum log_level level, char *file, int line, char *msg, ...) {
     va_start(args, msg);
 
     switch (level) {
-        case UNKNOW:
-            log_print(WARN, __FILENAME__, __LINE__, "Can't print log with log level to UNKNOW");
+        case LOG_UNKNOW:
+            #ifdef __linux__
+                log_print(LOG_WARN, __FILENAME__, __LINE__, "Can't print log with log level to UNKNOW");
+            #elifdef _WIN32
+                log_print(LOG_WARN, __FILE_NAME__, __LINE__, "Can't print log with log level to UNKNOW");
+            #else
+                #error "This lib is not designed to be compiled on this system !"
+            #endif
             break;
-        case DEBUG:
+        case LOG_DEBUG:
             log_debug(file, line, msg, args);
             break;
-        case INFO:
+        case LOG_INFO:
             log_info(file, line, msg, args);
             break;
-        case WARN:
+        case LOG_WARN:
             log_warn(file, line, msg, args);
             break;
-        case FATAL:
+        case LOG_FATAL:
             log_fatal(file, line, msg, args);
             break;
         default:
-            LOG_MESG(WARN, "The log level used is not defined");
+            LOG_MESG(LOG_WARN, "The log level used is not defined");
             break;
     }
 
@@ -297,13 +309,13 @@ void log_print(enum log_level level, char *file, int line, char *msg, ...) {
 }
 
 void log_master_level(enum log_level level) {
-    if (level == UNKNOW) {
-        LOG_MESG(WARN, "Can't set thread log level to UNKNOW");
+    if (level == LOG_UNKNOW) {
+        LOG_MESG(LOG_WARN, "Can't set thread log level to UNKNOW");
         return;
     }
 
-    if (level > DEBUG) {
-        LOG_MESG(WARN, "Can't set this log level : %d", level);
+    if (level > LOG_DEBUG) {
+        LOG_MESG(LOG_WARN, "Can't set this log level : %d", level);
         return;
     }
 
@@ -311,13 +323,13 @@ void log_master_level(enum log_level level) {
 }
 
 void log_thread_level(enum log_level level) {
-    if (level == UNKNOW) {
-        LOG_MESG(WARN, "Can't set thread log level to UNKNOW");
+    if (level == LOG_UNKNOW) {
+        LOG_MESG(LOG_WARN, "Can't set thread log level to UNKNOW");
         return;
     }
 
-    if (level > DEBUG) {
-        LOG_MESG(WARN, "Can't set this log level : %d", level);
+    if (level > LOG_DEBUG) {
+        LOG_MESG(LOG_WARN, "Can't set this log level : %d", level);
         return;
     }
 
