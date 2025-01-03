@@ -152,7 +152,7 @@ static void check_thread_level_defined(void) {
 static size_t get_time(char *buf) {
     time_t t = time(NULL);
     struct tm tm;
-    localtime_s(&t, &tm);
+    localtime_r(&t, &tm);
     char s[64];
     return strftime(buf, sizeof(s), "%Y %b %d %H:%M:%S", &tm);
 }
@@ -280,13 +280,7 @@ void log_print(enum log_level level, char *file, int line, char *msg, ...) {
 
     switch (level) {
         case LOG_UNKNOW:
-            #ifdef __linux__
-                log_print(LOG_WARN, __FILENAME__, __LINE__, "Can't print log with log level to UNKNOW");
-            #elifdef _WIN32
-                log_print(LOG_WARN, __FILE_NAME__, __LINE__, "Can't print log with log level to UNKNOW");
-            #else
-                #error "This lib is not designed to be compiled on this system !"
-            #endif
+                log_print(LOG_WARN, FILENAME, __LINE__, "Can't print log with log level to UNKNOW");
             break;
         case LOG_DEBUG:
             log_debug(file, line, msg, args);
