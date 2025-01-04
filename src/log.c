@@ -151,10 +151,18 @@ static void check_thread_level_defined(void) {
 
 static size_t get_time(char *buf) {
     time_t t = time(NULL);
-    struct tm tm;
-    localtime_r(&t, &tm);
-    char s[64];
-    return strftime(buf, sizeof(s), "%Y %b %d %H:%M:%S", &tm);
+    #ifdef __linux__
+        struct tm tm;
+        localtime_r(&t, &tm);
+        char s[64];
+        return strftime(buf, sizeof(s), "%Y %b %d %H:%M:%S", &tm);
+    #elifdef _WIN32
+        struct tm *tm = localtime(&t);
+        char s[64];
+        return strftime(buf, sizeof(s), "%Y %b %d %H:%M:%S", tm);
+    #else
+        #error "This lib is not designed to be compiled on this system!"
+    #endif
 }
 
 static void print_log(enum log_level level, char *msg_base, char *msg_sent) {
